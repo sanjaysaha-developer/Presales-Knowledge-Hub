@@ -1,0 +1,79 @@
+MASTER SERVICES AGREEMENT
+
+This Master Services Agreement ("Agreement") is entered into as of {{EffectiveDate}} ("Effective Date"), by and between:
+
+{{PartyA}} ("Client"), located at {{ClientAddress}}
+
+and
+
+{{PartyB}} ("Service Provider"), located at {{ProviderAddress}}
+
+1. SCOPE OF SERVICES
+
+The Service Provider agrees to provide the following services to the Client:
+
+{{Scope}}
+
+2. DELIVERABLES
+
+The Service Provider will deliver the following:
+
+{{Deliverables}}
+
+3. PAYMENT TERMS
+
+3.1 Total Contract Value: {{Price}}
+
+3.2 Payment Schedule: {{PaymentTerms}}
+
+3.3 All payments shall be made within 30 days of invoice date unless otherwise specified.
+
+4. TERM AND TERMINATION
+
+4.1 This Agreement shall commence on {{StartDate}} and continue until {{EndDate}}, unless terminated earlier in accordance with this section.
+
+4.2 Either party may terminate this Agreement with 30 days written notice.
+
+{{#ifCond price '>' 50000}}
+5. PERFORMANCE GUARANTEES
+
+5.1 Service Level Agreement: {{SLA}}
+
+5.2 The Service Provider guarantees 99.9% uptime for all critical services.
+
+5.3 Performance metrics will be reviewed quarterly.
+{{/ifCond}}
+
+6. CONFIDENTIALITY
+
+6.1 Both parties agree to maintain the confidentiality of all proprietary information shared during the term of this Agreement.
+
+6.2 Confidential information shall not be disclosed to third parties without prior written consent.
+
+7. INTELLECTUAL PROPERTY
+
+7.1 All deliverables created under this Agreement shall be the property of the Client upon full payment.
+
+7.2 The Service Provider retains ownership of pre-existing intellectual property and tools used in the delivery of services.
+
+8. WARRANTIES AND LIABILITY
+
+8.1 The Service Provider warrants that all services will be performed in a professional and workmanlike manner.
+
+8.2 TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SERVICE PROVIDER'S TOTAL LIABILITY SHALL NOT EXCEED THE TOTAL AMOUNT PAID UNDER THIS AGREEMENT.
+
+9. GOVERNING LAW
+
+This Agreement shall be governed by and construed in accordance with the laws of [Jurisdiction], without regard to its conflict of law provisions.
+
+10. ENTIRE AGREEMENT
+
+This Agreement constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, or agreements, whether written or oral.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the Effective Date.
+
+{{PartyA}}                                    {{PartyB}}
+Client                                        Service Provider
+
+Signature: ___________________                Signature: ___________________
+Date: ___________________                     Date: ___________________
