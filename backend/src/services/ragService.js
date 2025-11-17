@@ -1,4 +1,5 @@
-import { Ollama } from 'ollama';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { supabase } from './supabaseClient.js';
 import embeddingService from './embeddingService.js';
 
 /**
@@ -7,10 +8,12 @@ import embeddingService from './embeddingService.js';
  */
 class RAGService {
   constructor() {
-    this.ollama = new Ollama({
-      host: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-    });
-    this.model = process.env.OLLAMA_MODEL || 'llama3.1:8b';
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn('GEMINI_API_KEY not set. Set it in .env to enable generation.');
+    }
+    this.genAI = new GoogleGenerativeAI(apiKey || '');
+    this.modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     this.topK = parseInt(process.env.TOP_K_RETRIEVAL || '5');
     this.similarityThreshold = parseFloat(process.env.SIMILARITY_THRESHOLD || '0.7');
   }
@@ -23,7 +26,20 @@ class RAGService {
    */
   async retrieve(query, filter = null) {
     try {
-      const results = await embeddingService.search(query, this.topK, filter);
+      // Query Supabase pgvector via RPC
+      const queryEmbedding = await embeddingService.generateEmbeddings(query);
+      const { data, error } = await supabase.rpc('match_presales', {
+        query_embedding: queryEmbedding,
+        match_count: this.topK,
+        filter: filter || null,
+      });
+      if (error) throw error;
+      const results = (data || []).map(r => ({
+        id: r.id,
+        text: r.text,
+        metadata: r.metadata,
+        similarity: r.similarity ?? r.score ?? 0,
+      }));
 
       // Filter by similarity threshold
       const relevantResults = results.filter(
@@ -63,21 +79,23 @@ class RAGService {
         retrievedDocs
       );
 
-      console.log('🤖 Generating contract with LLM...');
+      console.log('🤖 Generating contract with Gemini...');
 
-      // Generate with Ollama
-      const response = await this.ollama.generate({
-        model: this.model,
-        prompt,
-        stream: false,
-        options: {
-          temperature: options.temperature || 0.3,
-          top_p: options.topP || 0.9,
-          num_predict: options.maxTokens || 2000,
+      const model = this.genAI.getGenerativeModel({ model: this.modelName });
+      const generation = await model.generateContent({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: options.temperature ?? 0.3,
+          topP: options.topP ?? 0.9,
+          maxOutputTokens: options.maxTokens ?? 2000,
         },
       });
-
-      const generatedText = response.response;
+      const generatedText = generation.response.text();
 
       // Post-process: merge with template
       const finalContract = this.mergeWithTemplate(
@@ -100,7 +118,7 @@ class RAGService {
         contract: finalContract,
         citations,
         metadata: {
-          model: this.model,
+          model: this.modelName,
           retrievalCount: retrievedDocs.length,
           generatedAt: new Date().toISOString(),
         },
@@ -267,16 +285,12 @@ OUTPUT ONLY THE FILLED CONTRACT TEXT:`;
         ? `Context:\n${context}\n\nQuestion: ${question}\n\nAnswer:`
         : question;
 
-      const response = await this.ollama.generate({
-        model: this.model,
-        prompt,
-        stream: false,
-        options: {
-          temperature: 0.7,
-        },
+      const model = this.genAI.getGenerativeModel({ model: this.modelName });
+      const generation = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7 },
       });
-
-      return response.response;
+      return generation.response.text();
     } catch (error) {
       console.error('LLM query failed:', error);
       throw new Error(`LLM query failed: ${error.message}`);

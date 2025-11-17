@@ -69,7 +69,7 @@ export function initDatabase() {
       sla_terms TEXT,
       metadata TEXT,
       file_path TEXT,
-      created_by TEXT NOT NULL,
+      created_by TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (created_by) REFERENCES users(id)

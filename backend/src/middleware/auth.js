@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/index.js';
+import { supabase } from '../services/supabaseClient.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
@@ -7,24 +8,24 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-i
  * Generate JWT token
  */
 export function generateToken(user) {
+  // Deprecated for Supabase Auth. Kept for backward compatibility if needed.
   return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    },
+    { id: user.id, email: user.email, role: user.role },
     JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    }
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 }
 
 /**
  * Verify JWT token middleware
  */
-export function authenticate(req, res, next) {
+export async function authenticate(req, res, next) {
   try {
+    // Dev bypass: disable all auth checks when explicitly requested
+    if (process.env.DISABLE_AUTH === 'true') {
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -34,21 +35,48 @@ export function authenticate(req, res, next) {
       });
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const token = authHeader.substring(7);
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    // Prefer Supabase Auth when configured
+    if (process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) {
+      try {
+        const { data, error } = await supabase.auth.getUser(token);
 
-    // Get user from database
-    const user = User.findById(decoded.id);
+        if (error || !data?.user) {
+          return res.status(401).json({
+            error: 'Invalid token',
+            message: error?.message || 'Unable to validate Supabase token',
+          });
+        }
 
-    if (!user) {
-      return res.status(401).json({
-        error: 'User not found',
-        message: 'The user associated with this token no longer exists',
-      });
+        const sUser = data.user;
+        const role =
+          (sUser.app_metadata && sUser.app_metadata.role) ||
+          (sUser.user_metadata && sUser.user_metadata.role) ||
+          'viewer';
+
+        req.user = {
+          id: sUser.id,
+          email: sUser.email,
+          role,
+        };
+
+        return next();
+      } catch (error) {
+        console.error('Supabase auth error:', error);
+        return res.status(401).json({
+          error: 'Authentication failed',
+          message: 'Unable to validate Supabase token',
+        });
+      }
     }
 
-    // Attach user to request
+    // Fallback: local JWT
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = User.findById(decoded.id);
+    if (!user) {
+      return res.status(401).json({ error: 'User not found', message: 'The user associated with this token no longer exists' });
+    }
     req.user = user;
     next();
   } catch (error) {
@@ -78,6 +106,11 @@ export function authenticate(req, res, next) {
  */
 export function authorize(...allowedRoles) {
   return (req, res, next) => {
+    // Dev bypass: skip role checks entirely
+    if (process.env.DISABLE_AUTH === 'true') {
+      return next();
+    }
+
     if (!req.user) {
       return res.status(401).json({
         error: 'Unauthorized',

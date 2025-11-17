@@ -1,4 +1,4 @@
-import ollama from 'ollama';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 /**
  * Metadata Extraction Service
@@ -6,8 +6,12 @@ import ollama from 'ollama';
  */
 class MetadataExtractionService {
   constructor() {
-    this.model = process.env.OLLAMA_MODEL || 'llama3.1:8b';
-    this.baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn('GEMINI_API_KEY not set. Metadata extraction will use empty defaults.');
+    }
+    this.genAI = new GoogleGenerativeAI(apiKey || '');
+    this.modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
   }
 
   /**
@@ -20,18 +24,18 @@ class MetadataExtractionService {
     try {
       const prompt = this.buildExtractionPrompt(text, documentType);
 
-      const response = await ollama.generate({
-        model: this.model,
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.1,  // Low temperature for factual extraction
-          top_p: 0.9,
-          num_predict: 1000
-        }
+      const model = this.genAI.getGenerativeModel({ model: this.modelName });
+      const generation = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          topP: 0.9,
+          maxOutputTokens: 1200,
+        },
       });
 
-      const extractedData = this.parseExtractionResponse(response.response);
+      const textOut = generation.response.text();
+      const extractedData = this.parseExtractionResponse(textOut);
       return extractedData;
     } catch (error) {
       console.error('Error extracting metadata:', error);
@@ -261,18 +265,14 @@ Return format: ["tag1", "tag2", "tag3", ...]
 
 JSON:`;
 
-      const response = await ollama.generate({
-        model: this.model,
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.2,
-          top_p: 0.9,
-          num_predict: 200
-        }
+      const model = this.genAI.getGenerativeModel({ model: this.modelName });
+      const generation = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, topP: 0.9, maxOutputTokens: 400 },
       });
 
-      const jsonMatch = response.response.match(/\[[\s\S]*\]/);
+      const output = generation.response.text();
+      const jsonMatch = output.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const tags = JSON.parse(jsonMatch[0]);
         return Array.isArray(tags) ? tags.slice(0, 10) : [];
@@ -350,17 +350,14 @@ Return ONLY a JSON object:
 
 JSON:`;
 
-      const response = await ollama.generate({
-        model: this.model,
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.1,
-          num_predict: 500
-        }
+      const model = this.genAI.getGenerativeModel({ model: this.modelName });
+      const generation = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 600 },
       });
 
-      const jsonMatch = response.response.match(/\{[\s\S]*\}/);
+      const output = generation.response.text();
+      const jsonMatch = output.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }

@@ -1,4 +1,4 @@
-import ollama from 'ollama';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PresalesDocument } from '../models/index.js';
 
 /**
@@ -7,7 +7,12 @@ import { PresalesDocument } from '../models/index.js';
  */
 class SummarizationService {
   constructor() {
-    this.model = process.env.OLLAMA_MODEL || 'llama3.1:8b';
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn('GEMINI_API_KEY not set. Summarization will fail until provided.');
+    }
+    this.genAI = new GoogleGenerativeAI(apiKey || '');
+    this.modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
   }
 
   /**
@@ -20,18 +25,18 @@ class SummarizationService {
     try {
       const prompt = this.buildSummaryPrompt(text, documentType);
 
-      const response = await ollama.generate({
-        model: this.model,
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.3,  // Moderate temperature for creative but factual summaries
-          top_p: 0.9,
-          num_predict: 500
-        }
+      const model = this.genAI.getGenerativeModel({ model: this.modelName });
+      const generation = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          topP: 0.9,
+          maxOutputTokens: 800,
+        },
       });
 
-      const summaryData = this.parseSummaryResponse(response.response);
+      const textOut = generation.response.text();
+      const summaryData = this.parseSummaryResponse(textOut);
       return summaryData;
     } catch (error) {
       console.error('Error generating summary:', error);
@@ -249,17 +254,14 @@ Return as JSON array:
 
 JSON:`;
 
-      const response = await ollama.generate({
-        model: this.model,
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.3,
-          num_predict: 300
-        }
+      const model = this.genAI.getGenerativeModel({ model: this.modelName });
+      const generation = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 400 },
       });
 
-      const jsonMatch = response.response.match(/\[[\s\S]*\]/);
+      const output = generation.response.text();
+      const jsonMatch = output.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const highlights = JSON.parse(jsonMatch[0]);
         return {
@@ -329,17 +331,14 @@ Examples:
 
 JSON:`;
 
-      const response = await ollama.generate({
-        model: this.model,
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.1,
-          num_predict: 400
-        }
+      const model = this.genAI.getGenerativeModel({ model: this.modelName });
+      const generation = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 600 },
       });
 
-      const jsonMatch = response.response.match(/\[[\s\S]*\]/);
+      const output = generation.response.text();
+      const jsonMatch = output.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }

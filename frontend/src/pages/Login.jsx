@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../utils/store';
-import { authAPI } from '../services/api';
+import api, { authAPI } from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -22,6 +22,8 @@ export default function Login() {
       const { user, token } = response.data;
 
       setAuth(user, token);
+      // Ensure immediate subsequent requests include the token
+      api.defaults.headers.Authorization = `Bearer ${token}`;
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please try again.');

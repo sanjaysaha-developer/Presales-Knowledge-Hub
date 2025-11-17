@@ -235,3 +235,9 @@ If you want, I can now:
 Create a schema for template JSON and contract metadata.
 Pick one and I’ll generate it next — I won’t estimate time, but I’ll produce the artifacts you can hand straight to engineers.
 c
+
+
+
+admin@contracthub.com / admin123 (admin)
+legal@contracthub.com / legal123 (legal)
+business@contracthub.com / business123 (business)

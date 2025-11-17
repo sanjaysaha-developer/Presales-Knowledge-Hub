@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import db, { initDatabase } from './config/database.js';
-import embeddingService from './services/embeddingService.js';
+// Embeddings are initialized lazily by Pinecone service
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -14,6 +14,7 @@ import contractsRoutes from './routes/contracts.routes.js';
 import proposalsRoutes from './routes/proposals.routes.js';
 import templatesRoutes from './routes/templates.routes.js';
 import presalesRoutes from './routes/presales.routes.js';
+// Vector routes removed (Pinecone deprecated)
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,8 +22,13 @@ const __dirname = path.dirname(__filename);
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
+// TEMPORARILY DISABLE SUPABASE - Comment out these lines when Supabase is ready
+process.env.SUPABASE_URL = '';
+process.env.SUPABASE_KEY = '';
+console.log('🔧 Supabase temporarily disabled - using SQLite fallback');
+
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 4000;
 const API_VERSION = process.env.API_VERSION || 'v1';
 
 // Middleware
@@ -32,12 +38,16 @@ app.use(express.json({ limit: '10mb' })); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-});
-app.use(`/api/${API_VERSION}`, limiter);
+if (process.env.NODE_ENV === 'production') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use(`/api/${API_VERSION}`, limiter);
+}
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -64,6 +74,7 @@ app.use(`/api/${API_VERSION}/contracts`, contractsRoutes);
 app.use(`/api/${API_VERSION}/proposals`, proposalsRoutes);
 app.use(`/api/${API_VERSION}/templates`, templatesRoutes);
 app.use(`/api/${API_VERSION}/presales`, presalesRoutes);
+// Vector routes disabled pending Supabase pgvector migration
 
 // Root route
 app.get('/', (req, res) => {
@@ -78,6 +89,7 @@ app.get('/', (req, res) => {
       proposals: `/api/${API_VERSION}/proposals`,
       templates: `/api/${API_VERSION}/templates`,
       presales: `/api/${API_VERSION}/presales`,
+      vector: `/api/${API_VERSION}/vector`,
     },
   });
 });
@@ -109,23 +121,9 @@ async function initialize() {
   console.log('📊 Setting up database...');
   initDatabase();
 
-  // Initialize embedding service
-  console.log('\n🧠 Initializing embedding service...');
-  await embeddingService.initialize();
+  // Embedding/Pinecone will initialize on demand
 
-  // Check Ollama connection
-  console.log('\n🤖 Checking Ollama connection...');
-  try {
-    const { Ollama } = await import('ollama');
-    const ollama = new Ollama({
-      host: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-    });
-    const models = await ollama.list();
-    console.log(`✅ Ollama connected (${models.models.length} models available)`);
-  } catch (error) {
-    console.warn('⚠️  Ollama not available:', error.message);
-    console.warn('   Make sure Ollama is running: https://ollama.ai');
-  }
+  // Gemini connectivity will be validated on demand by RAG service
 
   console.log('\n✅ Initialization complete!\n');
 }

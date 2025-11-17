@@ -1,4 +1,5 @@
 import embeddingService from './embeddingService.js';
+import { supabase } from './supabaseClient.js';
 import { PresalesDocument, DocumentCategory, DocumentTag } from '../models/index.js';
 import documentProcessor from './documentProcessor.js';
 
@@ -7,9 +8,7 @@ import documentProcessor from './documentProcessor.js';
  * Provides semantic search capabilities for presales documents
  */
 class PresalesSearchService {
-  constructor() {
-    this.collectionName = 'presales_knowledge';
-  }
+  constructor() {}
 
   /**
    * Initialize the presales search collection
@@ -17,7 +16,7 @@ class PresalesSearchService {
   async initialize() {
     try {
       await embeddingService.initialize();
-      console.log('✅ Presales search service initialized');
+      console.log('✅ Presales search service initialized (Supabase backend)');
     } catch (error) {
       console.error('Error initializing presales search:', error);
       throw error;
@@ -69,8 +68,17 @@ class PresalesSearchService {
         }
       }));
 
-      // Add to vector store
-      await embeddingService.addDocuments(documents);
+      // Add to vector store (Supabase pgvector expected)
+      // Requires a table 'presales_vectors' with columns: id text pk, text text, metadata jsonb, embedding vector(384)
+      const embeddings = await embeddingService.generateEmbeddings(documents.map(d => d.text));
+      const rows = documents.map((d, i) => ({
+        id: d.id,
+        text: d.text,
+        metadata: d.metadata || {},
+        embedding: embeddings[i],
+      }));
+      const { error } = await supabase.from('presales_vectors').upsert(rows);
+      if (error) throw error;
 
       // Update embedding status
       PresalesDocument.updateEmbeddingStatus(document.id, 'completed', chunks.length);
@@ -102,8 +110,20 @@ class PresalesSearchService {
       // Build metadata filter for vector search
       const metadataFilter = this.buildMetadataFilter(filters);
 
-      // Perform semantic search
-      const results = await embeddingService.search(query, topK * 2, metadataFilter);
+      // Perform semantic search via Supabase RPC or SQL function (expects 'match_presales' RPC to be set up)
+      const queryEmbedding = await embeddingService.generateEmbeddings(query);
+      const { data, error } = await supabase.rpc('match_presales', {
+        query_embedding: queryEmbedding,
+        match_count: topK * 2,
+        filter: metadataFilter,
+      });
+      if (error) throw error;
+      const results = (data || []).map(r => ({
+        id: r.id,
+        text: r.text,
+        metadata: r.metadata,
+        similarity: r.similarity ?? r.score ?? 0,
+      }));
 
       // Filter results to only presales documents
       const presalesResults = results.filter(r => r.metadata?.source === 'presales');
@@ -310,7 +330,7 @@ class PresalesSearchService {
         chunkIds.push(`presales_${documentId}_chunk_${i}`);
       }
 
-      await embeddingService.deleteDocuments(chunkIds);
+      await supabase.from('presales_vectors').delete().in('id', chunkIds);
 
       // Update document status
       PresalesDocument.updateEmbeddingStatus(documentId, 'pending', 0);
