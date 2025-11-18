@@ -2,25 +2,13 @@
 
 Get up and running with Contract Hub in 5 minutes!
 
-## Step 1: Install Ollama
+## Step 1: Get Google Gemini API Key
 
-### Windows
-Download and install from: https://ollama.ai
+Visit [Google AI Studio](https://makersuite.google.com/app/apikey) and create a free API key.
 
-### macOS/Linux
-```bash
-curl -fsSL https://ollama.ai/install.sh | sh
-```
+No installation required - Gemini runs in the cloud!
 
-## Step 2: Pull the AI Model
-
-```bash
-ollama pull llama3.1:8b
-```
-
-This will download ~4.7GB. First time only.
-
-## Step 3: Install Dependencies
+## Step 2: Install Dependencies
 
 Open terminal in the project folder:
 
@@ -34,25 +22,31 @@ cd ../frontend
 npm install
 ```
 
-## Step 4: Setup Database
+## Step 3: Setup Database
 
 ```bash
-cd ../backend
+cd backend
 npm run seed
 ```
 
-This creates test users and sample data.
+This creates sample templates and proposals.
 
-## Step 5: Start Ollama
+## Step 4: Configure Environment
+
+Create `.env` file in backend folder:
 
 ```bash
-# In a new terminal
-ollama serve
+cd backend
+cp .env.example .env
 ```
 
-Keep this running.
+Add your Gemini API key:
 
-## Step 6: Start Backend
+```env
+GEMINI_API_KEY=your_api_key_here
+```
+
+## Step 5: Start Backend
 
 ```bash
 # In backend folder
@@ -64,11 +58,11 @@ You should see:
 ```
 ✅ Database schema initialized
 ✅ Embedding model loaded
-✅ Ollama connected
+✅ Gemini API configured
 🎯 Server running on http://localhost:3001
 ```
 
-## Step 7: Start Frontend
+## Step 6: Start Frontend
 
 ```bash
 # In a NEW terminal, in frontend folder
@@ -108,22 +102,21 @@ You should see:
    - Semantic checks (scope, deliverables)
    - Mismatches and suggestions
 
-## Test Accounts
+## Access
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@contracthub.com | admin123 |
-| Legal | legal@contracthub.com | legal123 |
-| Business | business@contracthub.com | business123 |
+No login required! The dashboard loads directly at `http://localhost:3000`.
+
+The seeding created sample templates and proposals for testing.
 
 ## Common Issues
 
-### "Ollama not available"
-- Make sure Ollama is running: `ollama serve`
-- Check it's accessible: `curl http://localhost:11434`
+### "Gemini API key not configured"
+- Make sure you added `GEMINI_API_KEY=your_key_here` to your `.env` file
+- Verify your API key is valid at [Google AI Studio](https://makersuite.google.com/app/apikey)
 
-### "Model not found"
-- Pull the model: `ollama pull llama3.1:8b`
+### "Failed to generate contract"
+- Check your Gemini API quota and billing status
+- Ensure your API key has the necessary permissions
 
 ### Port already in use
 - Backend (3001) or frontend (3000) port is taken

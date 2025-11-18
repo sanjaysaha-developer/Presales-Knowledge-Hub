@@ -1,6 +1,5 @@
-import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { User, Template, Proposal } from '../models/index.js';
+import { Template, Proposal } from '../models/index.js';
 import { initDatabase } from '../config/database.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -16,47 +15,6 @@ async function seed() {
   initDatabase();
 
   try {
-    // Create admin user
-    console.log('👤 Creating users...');
-    const adminPassword = await bcrypt.hash('admin123', 10);
-    const legalPassword = await bcrypt.hash('legal123', 10);
-    const businessPassword = await bcrypt.hash('business123', 10);
-
-    const adminId = uuidv4();
-    const legalId = uuidv4();
-    const businessId = uuidv4();
-
-    User.create({
-      id: adminId,
-      email: 'admin@contracthub.com',
-      password_hash: adminPassword,
-      name: 'Admin User',
-      role: 'admin',
-    });
-
-    User.create({
-      id: legalId,
-      email: 'legal@contracthub.com',
-      password_hash: legalPassword,
-      name: 'Legal Team',
-      role: 'legal',
-    });
-
-    User.create({
-      id: businessId,
-      email: 'business@contracthub.com',
-      password_hash: businessPassword,
-      name: 'Business User',
-      role: 'business',
-    });
-
-    console.log('✅ Created 3 users');
-    console.log('   - admin@contracthub.com / admin123 (admin)');
-    console.log('   - legal@contracthub.com / legal123 (legal)');
-    console.log('   - business@contracthub.com / business123 (business)\n');
-
-    // Create templates
-    console.log('📄 Creating templates...');
 
     // Read MSA template
     const msaTemplatePath = path.join(__dirname, '../../../data/templates/msa-template.txt');
@@ -106,10 +64,10 @@ SLA: {{SLA}}`;
           text: 'Service Level Agreement with 99.9% uptime guarantee',
         },
       ]),
-      approved_by: legalId,
+      approved_by: 'system',
       approved_at: new Date().toISOString(),
       is_active: 1,
-      created_by: legalId,
+      created_by: 'system',
     });
 
     const sowTemplateId = uuidv4();
@@ -153,10 +111,10 @@ Payment Terms: {{PaymentTerms}}
         { name: 'EndDate', type: 'date', required: true },
         { name: 'SLA', type: 'textarea', required: false },
       ]),
-      approved_by: legalId,
+      approved_by: 'system',
       approved_at: new Date().toISOString(),
       is_active: 1,
-      created_by: legalId,
+      created_by: 'system',
     });
 
     console.log('✅ Created 2 templates (MSA, SOW)\n');
@@ -186,7 +144,7 @@ Payment Terms: {{PaymentTerms}}
         contact: 'john.doe@acme.com',
         estimatedUsers: 1000,
       }),
-      created_by: businessId,
+      created_by: 'system',
     });
 
     Proposal.create({
@@ -212,7 +170,7 @@ Payment Terms: {{PaymentTerms}}
         contact: 'cto@techstart.com',
         currentInfra: 'On-premise data center',
       }),
-      created_by: businessId,
+      created_by: 'system',
     });
 
     Proposal.create({
@@ -237,20 +195,19 @@ Payment Terms: {{PaymentTerms}}
         contact: 'analytics@globalretail.com',
         dataVolume: '10TB monthly',
       }),
-      created_by: businessId,
+      created_by: 'system',
     });
 
     console.log('✅ Created 3 sample proposals\n');
 
     console.log('✅ Database seeded successfully!\n');
     console.log('📝 Summary:');
-    console.log(`   - Users: ${User.count()}`);
     console.log(`   - Templates: ${Template.count()}`);
     console.log(`   - Proposals: ${Proposal.count()}\n`);
 
     console.log('🎯 You can now:');
     console.log('   1. Start the backend server: npm run dev');
-    console.log('   2. Login with one of the test accounts');
+    console.log('   2. Access the dashboard directly');
     console.log('   3. Generate contracts from proposals\n');
 
   } catch (error) {

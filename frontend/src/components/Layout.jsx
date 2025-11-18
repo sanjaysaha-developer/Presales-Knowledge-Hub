@@ -1,16 +1,8 @@
 import React from 'react';
-import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../utils/store';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 
 export default function Layout() {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
   const location = useLocation();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   const navigation = [
     { name: 'Dashboard', path: '/' },
@@ -53,14 +45,8 @@ export default function Layout() {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
-                {user?.name} ({user?.role})
+                System User
               </span>
-              <button
-                onClick={handleLogout}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Logout
-              </button>
             </div>
           </div>
         </div>

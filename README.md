@@ -1,6 +1,6 @@
 # Contract Hub - RAG-based Contract Management System
 
-A comprehensive enterprise contract management system powered by Retrieval-Augmented Generation (RAG), built with Node.js, React, and Ollama for local LLM processing.
+A comprehensive enterprise contract management system powered by Retrieval-Augmented Generation (RAG), built with Node.js, React, and Google Gemini for AI-powered contract generation.
 
 ## Features
 
@@ -27,7 +27,7 @@ A comprehensive enterprise contract management system powered by Retrieval-Augme
 │  │  Services Layer                                     │    │
 │  │  - Document Processor (PDF/DOCX/OCR)               │    │
 │  │  - Embedding Service (ChromaDB + Transformers.js)  │    │
-│  │  - RAG Service (Ollama LLM + Retrieval)           │    │
+│  │  - RAG Service (Google Gemini + Retrieval)        │    │
 │  │  - Validation Service (Rule + Semantic)            │    │
 │  │  - Template Engine (Handlebars)                    │    │
 │  └────────────────────────────────────────────────────┘    │
@@ -39,8 +39,8 @@ A comprehensive enterprise contract management system powered by Retrieval-Augme
 └──────────────────────────────────┬───────────────────────────┘
                                    │
                       ┌────────────▼──────────┐
-                      │   Ollama (Local LLM)  │
-                      │   llama3.1:8b         │
+                      │   Google Gemini API    │
+                      │   gemini-2.5-flash    │
                       └───────────────────────┘
 ```
 
@@ -51,11 +51,10 @@ A comprehensive enterprise contract management system powered by Retrieval-Augme
 - **Framework**: Express.js
 - **Database**: SQLite (better-sqlite3)
 - **Vector Store**: ChromaDB
-- **LLM**: Ollama (llama3.1:8b)
+- **LLM**: Google Gemini (gemini-2.5-flash)
 - **Embeddings**: @xenova/transformers (all-MiniLM-L6-v2)
 - **Document Processing**: pdf-parse, mammoth, tesseract.js
 - **Template Engine**: Handlebars
-- **Auth**: JWT + bcryptjs
 
 ### Frontend
 - **Framework**: React 18
@@ -70,37 +69,17 @@ A comprehensive enterprise contract management system powered by Retrieval-Augme
 Before you begin, ensure you have:
 
 1. **Node.js** (v18 or higher)
-2. **Ollama** installed and running
+2. **Google Gemini API Key** - Get one from [Google AI Studio](https://makersuite.google.com/app/apikey)
 
-### Installing Ollama
+### Setting up Google Gemini API
 
-#### Windows
-```bash
-# Download from https://ollama.ai
-# Or use winget:
-winget install Ollama.Ollama
-```
-
-#### macOS
-```bash
-# Download from https://ollama.ai
-# Or use Homebrew:
-brew install ollama
-```
-
-#### Linux
-```bash
-curl -fsSL https://ollama.ai/install.sh | sh
-```
-
-### Pull the Required Model
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a new API key
+3. Add it to your `.env` file:
 
 ```bash
-# Pull the Llama 3.1 8B model
-ollama pull llama3.1:8b
-
-# Pull the embedding model (optional, transformers.js will handle this)
-ollama pull nomic-embed-text
+GEMINI_API_KEY=your_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ## Installation
@@ -139,21 +118,13 @@ Edit `.env` if needed (defaults should work):
 ```env
 PORT=3001
 NODE_ENV=development
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.1:8b
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ## Running the Application
 
-### 1. Start Ollama (if not already running)
-
-```bash
-# In a new terminal
-ollama serve
-```
-
-### 2. Seed the Database
+### 1. Seed the Database
 
 ```bash
 cd backend
@@ -161,14 +132,10 @@ npm run seed
 ```
 
 This will create:
-- 3 test users (admin, legal, business)
 - 2 contract templates (MSA, SOW)
 - 3 sample proposals
 
-**Test Accounts:**
-- **Admin**: admin@contracthub.com / admin123
-- **Legal**: legal@contracthub.com / legal123
-- **Business**: business@contracthub.com / business123
+**Note:** Authentication has been removed. The dashboard loads directly without login.
 
 ### 3. Start the Backend
 
@@ -196,7 +163,7 @@ Open your browser and navigate to:
 http://localhost:3000
 ```
 
-Login with one of the test accounts above.
+The dashboard will load directly without authentication.
 
 ## Usage Guide
 
@@ -235,14 +202,6 @@ Login with one of the test accounts above.
 4. Generate contracts directly from proposals
 
 ## API Reference
-
-### Authentication
-
-```
-POST /api/v1/auth/login
-POST /api/v1/auth/register
-GET  /api/v1/auth/me
-```
 
 ### Contracts
 
@@ -295,12 +254,10 @@ Office Project/
 │   │   │   ├── validationService.js # Contract validation
 │   │   │   └── templateEngine.js    # Template rendering
 │   │   ├── routes/
-│   │   │   ├── auth.routes.js
 │   │   │   ├── contracts.routes.js
 │   │   │   ├── proposals.routes.js
 │   │   │   └── templates.routes.js
 │   │   ├── middleware/
-│   │   │   └── auth.js              # JWT authentication
 │   │   ├── utils/
 │   │   │   └── seed.js              # Database seeding
 │   │   └── server.js                # Express app
@@ -312,7 +269,6 @@ Office Project/
 │   │   ├── components/
 │   │   │   └── Layout.jsx           # Main layout component
 │   │   ├── pages/
-│   │   │   ├── Login.jsx
 │   │   │   ├── Dashboard.jsx
 │   │   │   ├── Contracts.jsx
 │   │   │   ├── ContractDetail.jsx
@@ -393,27 +349,24 @@ The validation engine performs multi-layer checks:
 
 ## Troubleshooting
 
-### Ollama Connection Error
+### Gemini API Error
 
 ```
-⚠️ Ollama not available: connect ECONNREFUSED
+Error: Gemini API key not configured or invalid
 ```
 
-**Solution**: Start Ollama:
+**Solution**: Add your Gemini API key to `.env`:
 ```bash
-ollama serve
+GEMINI_API_KEY=your_api_key_here
 ```
 
-### Model Not Found
+### Network/Quota Issues
 
 ```
-Error: model 'llama3.1:8b' not found
+Error: POST https://generativelanguage.googleapis.com/... 429 Too Many Requests
 ```
 
-**Solution**: Pull the model:
-```bash
-ollama pull llama3.1:8b
-```
+**Solution**: Check your Gemini API quota and billing status at [Google Cloud Console](https://console.cloud.google.com/)
 
 ### Port Already in Use
 
@@ -485,7 +438,7 @@ For issues and questions, refer to the documentation in `/docs` or check the inl
 
 ## Acknowledgments
 
-- Built with [Ollama](https://ollama.ai) for local LLM processing
+- Powered by [Google Gemini](https://ai.google.dev/) for AI contract generation
 - Vector search powered by [ChromaDB](https://www.trychroma.com/)
 - Embeddings by [Xenova/transformers.js](https://github.com/xenova/transformers.js)
 - UI components styled with [TailwindCSS](https://tailwindcss.com/)

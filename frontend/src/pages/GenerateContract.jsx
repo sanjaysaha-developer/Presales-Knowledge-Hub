@@ -52,7 +52,7 @@ export default function GenerateContract() {
       alert('Contract generated successfully!');
       navigate(`/contracts/${contractId}`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to generate contract. Make sure Ollama is running.');
+      setError(err.response?.data?.message || 'Failed to generate contract. Make sure Gemini API key is configured.');
     } finally {
       setGenerating(false);
     }
@@ -111,7 +111,7 @@ export default function GenerateContract() {
           <p className="text-sm text-blue-800">
             <strong>Note:</strong> Contract generation uses RAG (Retrieval-Augmented Generation) to create
             a draft based on the selected proposal and template. The system will retrieve relevant clauses
-            from the knowledge base and use the Ollama LLM to generate the contract.
+            from the knowledge base and use Google Gemini to generate the contract.
           </p>
         </div>
 

@@ -9,7 +9,6 @@ import db, { initDatabase } from './config/database.js';
 // Embeddings are initialized lazily by Pinecone service
 
 // Import routes
-import authRoutes from './routes/auth.routes.js';
 import contractsRoutes from './routes/contracts.routes.js';
 import proposalsRoutes from './routes/proposals.routes.js';
 import templatesRoutes from './routes/templates.routes.js';
@@ -69,7 +68,6 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use(`/api/${API_VERSION}/auth`, authRoutes);
 app.use(`/api/${API_VERSION}/contracts`, contractsRoutes);
 app.use(`/api/${API_VERSION}/proposals`, proposalsRoutes);
 app.use(`/api/${API_VERSION}/templates`, templatesRoutes);
@@ -84,7 +82,6 @@ app.get('/', (req, res) => {
     description: 'RAG-based Contract Management System with Presales Knowledge Hub',
     endpoints: {
       health: '/health',
-      auth: `/api/${API_VERSION}/auth`,
       contracts: `/api/${API_VERSION}/contracts`,
       proposals: `/api/${API_VERSION}/proposals`,
       templates: `/api/${API_VERSION}/templates`,

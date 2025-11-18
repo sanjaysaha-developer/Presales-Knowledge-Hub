@@ -139,7 +139,7 @@ router.post('/documents/upload', upload.single('file'), async (req, res) => {
       content: processed.text,
       client_name,
       industry,
-      uploaded_by: req.user.id
+      uploaded_by: 'system'
     });
 
     // Process in background: auto-tag, categorize, summarize, and index

@@ -9,39 +9,13 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add token (disabled for now)
-api.interceptors.request.use(
-  (config) => {
-    // Temporarily disabled authentication - remove when backend auth is enabled
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Avoid redirect loops: surface the error and let views decide.
-      // Do not clear token automatically; some endpoints may be public or fail transiently.
-    }
     return Promise.reject(error);
   }
 );
-
-// Auth API
-export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
-  register: (data) => api.post('/auth/register', data),
-  me: () => api.get('/auth/me'),
-};
 
 // Contracts API
 export const contractsAPI = {
