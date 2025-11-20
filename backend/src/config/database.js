@@ -246,6 +246,17 @@ export function initDatabase() {
   `;
 
   db.exec(schema);
+
+  // Create system user if it doesn't exist
+  const systemUser = db.prepare('SELECT id FROM users WHERE email = ?').get('system@local');
+  if (!systemUser) {
+    db.prepare(`
+      INSERT INTO users (id, email, password_hash, name, role)
+      VALUES (?, ?, ?, ?, ?)
+    `).run('system-user-id', 'system@local', 'system', 'System User', 'admin');
+    console.log('✅ System user created');
+  }
+
   console.log('✅ Database schema initialized');
 }
 

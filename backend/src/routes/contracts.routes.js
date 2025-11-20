@@ -1,6 +1,6 @@
 import express from 'express';
 import { Contract, Proposal, Template, ValidationResult, AuditLog } from '../models/index.js';
-import ragService from '../services/ragService.js';
+// import ragService from '../services/ragService.js'; // Temporarily disabled
 import validationService from '../services/validationService.js';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../services/supabaseClient.js';
@@ -15,33 +15,23 @@ router.get('/', async (req, res) => {
   try {
     const { status, limit = 50, offset = 0 } = req.query;
 
-    // Return mock contract data when Supabase is disabled
-    if (!process.env.SUPABASE_URL) {
-      const mockContracts = [];
+    // Use SQLite database only (Supabase temporarily disabled)
+    const allContracts = Contract.findAll();
+    let contracts = allContracts;
 
-      let contracts = mockContracts;
-      if (status) {
-        contracts = mockContracts.filter(c => c.status === status);
-      }
-
-      // Apply pagination
-      const startIndex = parseInt(offset);
-      const endIndex = startIndex + parseInt(limit);
-      contracts = contracts.slice(startIndex, endIndex);
-
-      return res.json({
-        contracts,
-        total: mockContracts.length,
-      });
+    if (status) {
+      contracts = allContracts.filter(c => c.status === status);
     }
 
-    // Supabase path
-    let query = supabase.from('contracts').select('*', { count: 'exact' }).order('created_at', { ascending: false });
-    if (status) query = query.eq('status', status);
-    query = query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
-    const { data, error, count } = await query;
-    if (error) throw error;
-    return res.json({ contracts: data || [], total: count || (data ? data.length : 0) });
+    // Apply pagination
+    const startIndex = parseInt(offset);
+    const endIndex = startIndex + parseInt(limit);
+    contracts = contracts.slice(startIndex, endIndex);
+
+    return res.json({
+      contracts,
+      total: allContracts.length,
+    });
   } catch (error) {
     res.status(500).json({
       error: 'Failed to fetch contracts',
@@ -56,21 +46,18 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    // Return mock data when Supabase is disabled
-    if (!process.env.SUPABASE_URL) {
+    // Use SQLite database only (Supabase temporarily disabled)
+    const contract = Contract.findById(req.params.id);
+
+    if (!contract) {
       return res.status(404).json({
         error: 'Contract not found',
       });
     }
 
-    // Supabase path
-    const { data: contract, error } = await supabase.from('contracts').select('*').eq('id', req.params.id).single();
-    if (error) throw error;
-    if (!contract) return res.status(404).json({ error: 'Contract not found' });
-
-    const { data: template } = await supabase.from('templates').select('*').eq('id', contract.template_id).single();
-    // Proposal could be migrated later; keep null if not in Supabase yet
-    const proposal = contract.proposal_id ? await supabase.from('proposals').select('*').eq('id', contract.proposal_id).single().then(({ data }) => data) : null;
+    // Get related template and proposal
+    const template = contract.template_id ? Template.findById(contract.template_id) : null;
+    const proposal = contract.proposal_id ? Proposal.findById(contract.proposal_id) : null;
     const validationResults = [];
 
     return res.json({ contract, template, proposal, validationResults });
@@ -102,133 +89,81 @@ router.post('/generate', async (req, res) => {
 
     console.log('Contract generation request:', { template_id, proposal_id });
 
-    if (process.env.SUPABASE_URL) {
-      // Use Supabase
-      const { data: templateData, error: templateError } = await supabase
-        .from('templates')
-        .select('*')
-        .eq('id', template_id)
-        .single();
+    // Use SQLite database only (Supabase temporarily disabled)
+    console.log('Looking for template with ID:', template_id);
+    template = Template.findById(template_id);
+    console.log('Template found:', template ? { id: template.id, name: template.name, is_active: template.is_active } : 'null');
 
-      if (templateError || !templateData) {
-        console.log('Template not found in Supabase:', templateError, templateData);
-        return res.status(404).json({ error: 'Template not found' });
-      }
+    console.log('Looking for proposal with ID:', proposal_id);
+    proposal = Proposal.findById(proposal_id);
+    console.log('Proposal found:', proposal ? { id: proposal.id, title: proposal.title } : 'null');
 
-      const { data: proposalData, error: proposalError } = await supabase
-        .from('proposals')
-        .select('*')
-        .eq('id', proposal_id)
-        .single();
-
-      if (proposalError || !proposalData) {
-        console.log('Proposal not found in Supabase:', proposalError, proposalData);
-        return res.status(404).json({ error: 'Proposal not found' });
-      }
-
-      template = templateData;
-      proposal = proposalData;
-    } else {
-      // Fallback to SQLite
-      console.log('Looking for template with ID:', template_id);
-      template = Template.findById(template_id);
-      console.log('Template found:', template ? { id: template.id, name: template.name, is_active: template.is_active } : 'null');
-
-      // If template not found, check if it's the test template
-      if (!template && template_id === 'test-template-123') {
-        console.log('Using test template for debugging');
-        template = {
-          id: 'test-template-123',
-          name: 'Test Template',
-          description: 'Temporary test template',
-          contract_type: 'MSA',
-          version: '1.0',
-          content: 'This is a test template content with {{PartyA}} and {{PartyB}}.',
-          placeholders: JSON.stringify([
-            { name: 'PartyA', type: 'text', required: true },
-            { name: 'PartyB', type: 'text', required: true }
-          ]),
-          conditional_clauses: JSON.stringify([]),
-          is_active: 1,
-          created_by: 'system'
-        };
-      }
-
-      // If template still not found, show all templates for debugging
-      if (!template) {
-        const allTemplates = Template.findAll();
-        console.log('All templates in DB during contract gen:', allTemplates.length, allTemplates.map(t => ({ id: t.id, name: t.name, is_active: t.is_active })));
-      }
-
-      console.log('Looking for proposal with ID:', proposal_id);
-      proposal = Proposal.findById(proposal_id);
-      console.log('Proposal found:', proposal ? { id: proposal.id, title: proposal.title } : 'null');
-
-      if (!template) {
-        console.log('Template not found in SQLite');
-        return res.status(404).json({ error: 'Template not found' });
-      }
-
-      if (!proposal) {
-        console.log('Proposal not found in SQLite');
-        return res.status(404).json({ error: 'Proposal not found' });
-      }
+    if (!template) {
+      console.log('Template not found in SQLite');
+      // Show all templates for debugging
+      const allTemplates = Template.findAll();
+      console.log('All templates in DB during contract gen:', allTemplates.length, allTemplates.map(t => ({ id: t.id, name: t.name, is_active: t.is_active })));
+      return res.status(404).json({ error: 'Template not found' });
     }
 
-    // Generate contract using RAG
-    const result = await ragService.generateContract(proposal, template, options);
-
-    // Create contract record
-    if (process.env.SUPABASE_URL) {
-      const contractId = uuidv4();
-      const { data: countRes } = await supabase.rpc('next_contract_sequence', {});
-      const contractNumber = countRes || `CNT-${new Date().getFullYear()}-0001`;
-      const insert = {
-        id: contractId,
-        template_id,
-        proposal_id,
-        contract_number: contractNumber,
-        title: proposal.title,
-        party_a: proposal.client_name,
-        party_b: 'Service Provider',
-        content: result.contract,
-        status: 'draft',
-        generated_by: 'system',
-        created_by: 'system',
-      };
-      const { data, error } = await supabase.from('contracts').insert(insert).select('*').single();
-      if (error) throw error;
-
-      AuditLog.log('contract', contractId, 'generate', { template_id, proposal_id, citations: result.citations.length }, 'system');
-      return res.status(201).json({ contract: data, citations: result.citations, metadata: result.metadata });
-    } else {
-      const contract = Contract.create({
-        id: uuidv4(),
-        template_id,
-        proposal_id,
-        contract_number: Contract.generateContractNumber(),
-        title: proposal.title,
-        party_a: proposal.client_name,
-        party_b: 'Service Provider', // TODO: Get from config
-        content: result.contract,
-        status: 'draft',
-        generated_by: 'system',
-        created_by: 'system',
-      });
-
-      // Log the action
-      AuditLog.log('contract', contract.id, 'generate', {
-        template_id,
-        proposal_id,
-        citations: result.citations.length,
-      }, 'system');
-
-      res.status(201).json({
-        contract,
-        citations: result.citations,
-        metadata: result.metadata,
-      });
+    if (!proposal) {
+      console.log('Proposal not found in SQLite');
+      return res.status(404).json({ error: 'Proposal not found' });
     }
+
+    // Generate contract using mock RAG (service temporarily disabled)
+    console.log('🤖 Generating contract (mock RAG - service disabled)');
+    const result = {
+      contract: template.content
+        .replace(/{{PartyA}}/g, proposal.client_name)
+        .replace(/{{PartyB}}/g, 'Service Provider')
+        .replace(/{{StartDate}}/g, proposal.start_date || 'TBD')
+        .replace(/{{EndDate}}/g, proposal.end_date || 'TBD')
+        .replace(/{{Price}}/g, `${proposal.currency || 'USD'} ${proposal.price}`)
+        .replace(/{{Scope}}/g, proposal.project_scope),
+      citations: [
+        {
+          id: 'mock-citation-1',
+          text: 'Mock citation from knowledge base',
+          similarity: 0.85,
+          metadata: { source: 'mock' }
+        }
+      ],
+      metadata: {
+        model: 'mock-rag',
+        retrievalCount: 1,
+        generatedAt: new Date().toISOString(),
+      }
+    };
+
+    // Create contract record (SQLite only)
+    const contract = Contract.create({
+      id: uuidv4(),
+      template_id,
+      proposal_id,
+      contract_number: Contract.generateContractNumber(),
+      title: proposal.title,
+      party_a: proposal.client_name,
+      party_b: 'Service Provider',
+      content: result.contract,
+      status: 'draft',
+      generated_by: 'system-user-id',
+      created_by: 'system-user-id',
+    });
+
+    // Log the action
+    AuditLog.log('contract', contract.id, 'generate', {
+      template_id,
+      proposal_id,
+      citations: result.citations.length,
+    }, 'system-user-id');
+
+    console.log('✅ Contract generated in SQLite:', contract.title);
+    res.status(201).json({
+      contract,
+      citations: result.citations,
+      metadata: result.metadata,
+    });
   } catch (error) {
     console.error('Contract generation error:', error);
     res.status(500).json({

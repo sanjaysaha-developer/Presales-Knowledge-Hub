@@ -5,14 +5,22 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fetch from 'node-fetch';
+import { createClient } from '@supabase/supabase-js';
 import db, { initDatabase } from './config/database.js';
 // Embeddings are initialized lazily by Pinecone service
+
+// Global fetch polyfill for Node.js
+if (!global.fetch) {
+  global.fetch = fetch;
+}
 
 // Import routes
 import contractsRoutes from './routes/contracts.routes.js';
 import proposalsRoutes from './routes/proposals.routes.js';
 import templatesRoutes from './routes/templates.routes.js';
 import presalesRoutes from './routes/presales.routes.js';
+import agentRoutes from './routes/agent.routes.js'; // Enabled with Supabase
 // Vector routes removed (Pinecone deprecated)
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,10 +29,33 @@ const __dirname = path.dirname(__filename);
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-// TEMPORARILY DISABLE SUPABASE - Comment out these lines when Supabase is ready
-process.env.SUPABASE_URL = '';
-process.env.SUPABASE_KEY = '';
-console.log('🔧 Supabase temporarily disabled - using SQLite fallback');
+// Debug: Check if environment variables are loaded
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'Set' : 'Not set');
+console.log('SUPABASE_KEY:', process.env.SUPABASE_KEY ? 'Set (length: ' + process.env.SUPABASE_KEY?.length + ')' : 'Not set');
+
+// Initialize Supabase client
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+  try {
+    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+    console.log('🔧 Supabase integration enabled - using Supabase database');
+    console.log('📡 Connected to Supabase project:', process.env.SUPABASE_URL.split('.')[0].split('//')[1]);
+
+    // Test the connection
+    console.log('🔍 Testing Supabase connection...');
+    // We'll test the connection during initialization
+  } catch (error) {
+    console.error('❌ Failed to initialize Supabase client:', error.message);
+    console.log('⚠️  Falling back to SQLite');
+    supabase = null;
+  }
+} else {
+  console.log('🔧 Supabase not configured - using SQLite fallback');
+  console.log('⚠️  Set SUPABASE_URL and SUPABASE_KEY in .env to enable Supabase');
+}
+
+// Export supabase client for use in other modules
+export { supabase };
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -72,6 +103,7 @@ app.use(`/api/${API_VERSION}/contracts`, contractsRoutes);
 app.use(`/api/${API_VERSION}/proposals`, proposalsRoutes);
 app.use(`/api/${API_VERSION}/templates`, templatesRoutes);
 app.use(`/api/${API_VERSION}/presales`, presalesRoutes);
+app.use(`/api/${API_VERSION}/agent`, agentRoutes); // Enabled with Supabase
 // Vector routes disabled pending Supabase pgvector migration
 
 // Root route
@@ -79,13 +111,15 @@ app.get('/', (req, res) => {
   res.json({
     name: 'Contract Hub API',
     version: API_VERSION,
-    description: 'RAG-based Contract Management System with Presales Knowledge Hub',
+    description: 'RAG-based Contract Management System with Presales Knowledge Hub and LangGraph Agents',
+    database: supabase ? 'Supabase' : 'SQLite',
     endpoints: {
       health: '/health',
       contracts: `/api/${API_VERSION}/contracts`,
       proposals: `/api/${API_VERSION}/proposals`,
       templates: `/api/${API_VERSION}/templates`,
       presales: `/api/${API_VERSION}/presales`,
+      agent: `/api/${API_VERSION}/agent`, // Enabled with Supabase
       vector: `/api/${API_VERSION}/vector`,
     },
   });
@@ -117,6 +151,24 @@ async function initialize() {
   // Initialize database
   console.log('📊 Setting up database...');
   initDatabase();
+
+  // Test Supabase connection if configured
+  if (supabase) {
+    console.log('🔍 Testing Supabase connection...');
+    try {
+      // Simple test query to verify connection
+      const { data, error } = await supabase.from('contracts').select('count').limit(1);
+      if (error) {
+        console.warn('⚠️  Supabase connection test failed:', error.message);
+        console.log('⚠️  Will fall back to SQLite for database operations');
+      } else {
+        console.log('✅ Supabase connection successful');
+      }
+    } catch (error) {
+      console.warn('⚠️  Supabase connection test failed:', error.message);
+      console.log('⚠️  Will fall back to SQLite for database operations');
+    }
+  }
 
   // Embedding/Pinecone will initialize on demand
 

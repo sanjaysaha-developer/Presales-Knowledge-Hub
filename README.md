@@ -1,10 +1,13 @@
-# Contract Hub - RAG-based Contract Management System
+# Contract Hub - RAG-based Contract Management System with LangGraph Agents
 
-A comprehensive enterprise contract management system powered by Retrieval-Augmented Generation (RAG), built with Node.js, React, and Google Gemini for AI-powered contract generation.
+A comprehensive enterprise contract management system powered by Retrieval-Augmented Generation (RAG) and LangGraph agents, built with Node.js, React, Google Gemini, and OpenAI for advanced AI-powered contract generation and intelligent assistance.
 
 ## Features
 
 - **RAG-Powered Contract Generation**: Generate contracts from proposals using AI with retrieval from a knowledge base
+- **LangGraph AI Agents**: Advanced multi-step reasoning agents for complex queries and analysis
+- **Intelligent Contract Analysis**: Specialized agents for risk assessment, compliance checking, and clause explanation
+- **Presales Strategic Advice**: AI-powered recommendations for sales opportunities and competitive positioning
 - **Template Management**: Create, version, and approve contract templates with placeholders and conditional logic
 - **Smart Validation**: Validate contracts against proposals using rule-based and semantic checks
 - **Knowledge Base**: Vector-based document storage for intelligent clause retrieval
@@ -28,6 +31,7 @@ A comprehensive enterprise contract management system powered by Retrieval-Augme
 │  │  - Document Processor (PDF/DOCX/OCR)               │    │
 │  │  - Embedding Service (ChromaDB + Transformers.js)  │    │
 │  │  - RAG Service (Google Gemini + Retrieval)        │    │
+│  │  - LangGraph Agent (Multi-step Reasoning)         │    │
 │  │  - Validation Service (Rule + Semantic)            │    │
 │  │  - Template Engine (Handlebars)                    │    │
 │  └────────────────────────────────────────────────────┘    │
@@ -38,10 +42,10 @@ A comprehensive enterprise contract management system powered by Retrieval-Augme
 │  └─────────────────┘        └──────────────┘              │
 └──────────────────────────────────┬───────────────────────────┘
                                    │
-                      ┌────────────▼──────────┐
-                      │   Google Gemini API    │
-                      │   gemini-2.5-flash    │
-                      └───────────────────────┘
+              ┌────────────▼──────────┬──────────────┐
+              │   Google Gemini API   │ OpenAI API   │
+              │   gemini-2.5-flash    │ gpt-4o-mini  │
+              └───────────────────────┴──────────────┘
 ```
 
 ## Tech Stack
@@ -51,7 +55,8 @@ A comprehensive enterprise contract management system powered by Retrieval-Augme
 - **Framework**: Express.js
 - **Database**: SQLite (better-sqlite3)
 - **Vector Store**: ChromaDB
-- **LLM**: Google Gemini (gemini-2.5-flash)
+- **Agent Framework**: LangGraph (@langchain/langgraph)
+- **LLMs**: Google Gemini (gemini-2.5-flash) + OpenAI GPT-4o-mini
 - **Embeddings**: @xenova/transformers (all-MiniLM-L6-v2)
 - **Document Processing**: pdf-parse, mammoth, tesseract.js
 - **Template Engine**: Handlebars
@@ -70,16 +75,30 @@ Before you begin, ensure you have:
 
 1. **Node.js** (v18 or higher)
 2. **Google Gemini API Key** - Get one from [Google AI Studio](https://makersuite.google.com/app/apikey)
+3. **OpenAI API Key** - Get one from [OpenAI Platform](https://platform.openai.com/api-keys)
 
-### Setting up Google Gemini API
+### Setting up API Keys
+
+#### Google Gemini API
 
 1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Create a new API key
 3. Add it to your `.env` file:
 
 ```bash
-GEMINI_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
+```
+
+#### OpenAI API
+
+1. Visit [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Create a new API key
+3. Add it to your `.env` file:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 ## Installation
@@ -116,11 +135,32 @@ cp .env.example .env
 Edit `.env` if needed (defaults should work):
 
 ```env
-PORT=3001
+PORT=4000
 NODE_ENV=development
+API_VERSION=v1
+
+# AI/ML Configuration (optional - mocked when not available)
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
+
+# LangGraph Agent Configuration (optional - mocked when not available)
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
+
+# RAG Configuration
+TOP_K_RETRIEVAL=5
+SIMILARITY_THRESHOLD=0.7
+
+# Database Configuration
+# SQLite (default - works out of the box)
+DATABASE_URL=./data/contract_hub.db
+
+# OR Supabase (uncomment to enable full functionality)
+# SUPABASE_URL=your_supabase_project_url
+# SUPABASE_KEY=your_supabase_anon_key
 ```
+
+**Note**: The application works with mocked AI services when API keys are not provided, allowing full functionality for development and testing.
 
 ## Running the Application
 
@@ -160,10 +200,64 @@ Frontend will run on `http://localhost:3000`
 Open your browser and navigate to:
 
 ```
-http://localhost:3000
+http://localhost:4000
 ```
 
-The dashboard will load directly without authentication.
+The API will be available with all endpoints including the new LangGraph agent endpoints.
+
+### 6. Test Supabase Integration (Optional)
+
+If you have Supabase configured, test the database integration:
+
+```bash
+cd backend
+npm run test:supabase
+```
+
+This will run comprehensive tests for all proposal and template CRUD operations.
+
+### 7. Test Architecture Implementations
+
+Test both the Contract Generation (RAG Flow) and AI Assistant Chat (LangGraph Flow):
+
+```bash
+cd backend
+npm run test:architectures
+```
+
+This will run comprehensive tests for:
+- Contract generation with RAG retrieval
+- AI assistant queries with tool usage
+- Supabase integration when configured
+
+### 8. Test LangGraph Agents
+
+You can test the agent endpoints using curl or any HTTP client:
+
+```bash
+# Test agent health
+curl http://localhost:4000/api/v1/agent/health
+
+# Test general query (RAG flow)
+curl -X POST http://localhost:4000/api/v1/agent/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What are the key risks in software development contracts?"}'
+
+# Test contract-specific query (Tool-based flow)
+curl -X POST http://localhost:4000/api/v1/agent/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Tell me about contract CNT-2025-001"}'
+
+# Test contract analysis
+curl -X POST http://localhost:4000/api/v1/agent/analyze-contract \
+  -H "Content-Type: application/json" \
+  -d '{"contractText": "This agreement is between Company A and Company B..."}'
+
+# Test presales advice
+curl -X POST http://localhost:4000/api/v1/agent/presales-advice \
+  -H "Content-Type: application/json" \
+  -d '{"scenario": "Enterprise client wants custom software development", "industry": "healthcare"}'
+```
 
 ## Usage Guide
 
@@ -201,6 +295,44 @@ The dashboard will load directly without authentication.
 3. Click a proposal to view details
 4. Generate contracts directly from proposals
 
+### 5. Use LangGraph AI Agents
+
+The system now includes advanced AI agents powered by LangGraph for intelligent assistance:
+
+#### General Queries
+Use the `/api/v1/agent/query` endpoint for general questions about contracts, legal matters, or business processes. The agent will analyze your query and route it to the appropriate specialized handler.
+
+#### Contract Analysis
+Use `/api/v1/agent/analyze-contract` for deep contract analysis. The agent can identify risks, compliance issues, and provide recommendations.
+
+#### Presales Strategic Advice
+Use `/api/v1/agent/presales-advice` to get AI-powered strategic recommendations for sales opportunities, including competitive positioning and value propositions.
+
+#### Clause Explanation
+Use `/api/v1/agent/explain-clause` to get plain-language explanations of complex contract clauses.
+
+**Example API Usage:**
+```javascript
+// General contract query
+const response = await fetch('/api/v1/agent/query', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    query: 'What are the main risks in outsourcing software development?'
+  })
+});
+
+// Contract analysis
+const analysis = await fetch('/api/v1/agent/analyze-contract', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    contractText: 'Full contract text here...',
+    analysisType: 'risks' // or 'compliance', 'terms', 'full'
+  })
+});
+```
+
 ## API Reference
 
 ### Contracts
@@ -237,6 +369,16 @@ PUT    /api/v1/templates/:id/approve  # Approve template
 DELETE /api/v1/templates/:id          # Delete template
 ```
 
+### LangGraph Agents
+
+```
+GET    /api/v1/agent/health           # Agent service health check
+POST   /api/v1/agent/query            # Process general queries through agent
+POST   /api/v1/agent/analyze-contract # Specialized contract analysis
+POST   /api/v1/agent/presales-advice  # Get presales strategic advice
+POST   /api/v1/agent/explain-clause   # Explain contract clauses
+```
+
 ## Project Structure
 
 ```
@@ -251,12 +393,14 @@ Office Project/
 │   │   │   ├── documentProcessor.js # PDF/DOCX parsing
 │   │   │   ├── embeddingService.js  # Vector embeddings
 │   │   │   ├── ragService.js        # RAG generation
+│   │   │   ├── langGraphAgent.js    # LangGraph AI agents
 │   │   │   ├── validationService.js # Contract validation
 │   │   │   └── templateEngine.js    # Template rendering
 │   │   ├── routes/
 │   │   │   ├── contracts.routes.js
 │   │   │   ├── proposals.routes.js
-│   │   │   └── templates.routes.js
+│   │   │   ├── templates.routes.js
+│   │   │   └── agent.routes.js
 │   │   ├── middleware/
 │   │   ├── utils/
 │   │   │   └── seed.js              # Database seeding
@@ -405,6 +549,105 @@ mkdir -p data/chroma_db
 - Sanitize all user inputs
 - Use environment variables for secrets
 
+## Database Integration
+
+The application supports both SQLite (default) and Supabase databases with automatic failover:
+
+### SQLite (Default)
+- Works out of the box, no additional setup required
+- Local file-based database for development and testing
+- Full CRUD operations for proposals and templates
+
+### Supabase Integration
+- Cloud-hosted PostgreSQL database
+- Real-time capabilities and advanced features
+- Scalable for production deployments
+- All CRUD operations fully implemented
+
+### Database Features
+- **Proposals**: Full CRUD operations with JSON field support
+- **Templates**: Complete template management with version control
+- **Audit Logging**: All operations are logged for compliance
+- **Fallback Support**: Automatic fallback to SQLite if Supabase is unavailable
+
+### Switching Between Databases
+Set the following environment variables to enable Supabase:
+```env
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_anon_key
+```
+
+If these variables are not set, the application will use SQLite automatically.
+
+## Architecture Implementations
+
+### Contract Generation (RAG Flow)
+
+The contract generation follows a Retrieval-Augmented Generation (RAG) pattern:
+
+1. **Frontend Request**: Single API call to `POST /api/v1/contracts/generate` with proposal and template IDs
+2. **Backend Processing**:
+   - Fetches proposal and template details from Supabase Postgres database
+   - Creates vector embedding from proposal data using sentence transformers
+   - Queries the knowledge base using pgvector to find the most relevant text chunks
+   - Constructs detailed prompt containing template, proposal data, and retrieved chunks
+   - Sends prompt to Google Gemini API for generation
+   - Saves newly created contract record to contracts table in Supabase
+   - Returns the generated contract with citations and metadata
+
+**Key Components**:
+- **Vector Search**: Uses `match_presales` RPC for semantic similarity search
+- **Prompt Engineering**: Combines template structure with retrieved knowledge
+- **Citation Tracking**: Maintains links to source documents for explainability
+
+### AI Assistant Chat (LangGraph Flow)
+
+The AI assistant uses LangGraph for multi-step reasoning with tool usage:
+
+1. **Frontend Request**: Sends message to `POST /api/v1/agent/query`
+2. **LangGraph Processing**:
+   - **Router Node**: Analyzes user intent (rag_query, contract_analysis, presales_query, contract_query)
+   - **Tool Selection**: Based on intent, selects appropriate tools:
+     - `search_knowledge_base`: Vector search on Supabase pgvector for general queries
+     - `get_contract_details`: Fetches specific contract data from Supabase Postgres
+     - `list_contracts`: Lists available contracts with filtering
+   - **Tool Execution**: Runs selected tools in parallel
+   - **Response Synthesis**: Final node combines tool results using Gemini API
+   - **Streaming Response**: Returns synthesized answer to frontend
+
+**Tool Capabilities**:
+- **Knowledge Base Search**: Semantic search across legal and business documents
+- **Contract Data Retrieval**: Direct database queries for contract-specific information
+- **Multi-Modal Reasoning**: Combines structured data with unstructured knowledge
+
+**Supported Query Types**:
+- General legal/business questions (RAG flow)
+- Contract-specific inquiries (tool-based flow)
+- Presales strategic advice (specialized flow)
+- Contract analysis and risk assessment (specialized flow)
+
+## LangGraph Agent Capabilities
+
+The LangGraph agents provide the following advanced features:
+
+### Multi-Step Reasoning
+- Query analysis and intent classification
+- Dynamic routing to specialized handlers
+- State management across conversation turns
+- Error handling and recovery
+
+### Specialized Agents
+- **RAG Agent**: Leverages existing knowledge base for contract-related queries
+- **Contract Analysis Agent**: Deep analysis of contract risks, compliance, and terms
+- **Presales Agent**: Strategic advice for sales opportunities and competitive positioning
+- **Clause Explanation Agent**: Plain-language explanations of legal clauses
+
+### Integration Features
+- Seamless integration with existing RAG system
+- Citation tracking and source attribution
+- Metadata enrichment for responses
+- Configurable analysis depth and focus
+
 ## Future Enhancements
 
 - [ ] E-signature integration (DocuSign/Adobe Sign)
@@ -417,6 +660,10 @@ mkdir -p data/chroma_db
 - [ ] CRM/ERP integrations
 - [ ] Advanced analytics dashboard
 - [ ] Bulk contract processing
+- [x] LangGraph AI agents (COMPLETED)
+- [ ] Agent memory and conversation persistence
+- [ ] Multi-agent collaboration workflows
+- [ ] Custom agent training on domain knowledge
 
 ## Contributing
 

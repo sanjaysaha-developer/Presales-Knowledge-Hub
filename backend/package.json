@@ -8,7 +8,9 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/utils/seed.js",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "test:supabase": "node test-supabase-integration.js",
+    "test:architectures": "node test-architectures.js"
   },
   "keywords": [
     "contract",
@@ -19,11 +21,13 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@xenova/transformers": "^2.10.0",
+    "@google/generative-ai": "^0.20.0",
+    "@langchain/community": "^0.0.53",
+    "@langchain/openai": "^0.0.28",
     "@supabase/supabase-js": "^2.46.1",
+    "@xenova/transformers": "^2.10.0",
     "better-sqlite3": "^9.2.2",
     "cors": "^2.8.5",
-    "@google/generative-ai": "^0.20.0",
     "date-fns": "^3.0.6",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
@@ -36,6 +40,7 @@
     "lodash": "^4.17.21",
     "mammoth": "^1.6.0",
     "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2",
     "pdf-parse": "^1.1.1",
     "sqlite3": "^5.1.7",
     "tesseract.js": "^5.0.4",
@@ -48,6 +53,5 @@
     "nodemon": "^3.0.2",
     "supertest": "^6.3.3"
   },
-  "overrides": {},
-  "optionalDependencies": {}
+  "overrides": {}
 }

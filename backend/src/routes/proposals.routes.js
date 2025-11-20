@@ -13,18 +13,7 @@ router.get('/', async (req, res) => {
   try {
     const { client, limit = 50, offset = 0 } = req.query;
 
-    if (process.env.SUPABASE_URL) {
-      let query = supabase.from('proposals').select('*', { count: 'exact' }).order('created_at', { ascending: false });
-      if (client) {
-        query = query.ilike('client_name', `%${client}%`);
-      }
-      query = query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
-      const { data, error, count } = await query;
-      if (error) throw error;
-      return res.json({ proposals: data || [], total: count || (data ? data.length : 0) });
-    }
-
-    // Return proposals from SQLite database
+    // Use SQLite database only (Supabase temporarily disabled)
     const allProposals = Proposal.findAll();
     let proposals = allProposals;
 
@@ -55,16 +44,9 @@ router.get('/', async (req, res) => {
  * GET /api/proposals/:id
  * Get a single proposal
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', (req, res) => {
   try {
-    if (process.env.SUPABASE_URL) {
-      const { data: proposal, error } = await supabase.from('proposals').select('*').eq('id', req.params.id).single();
-      if (error) throw error;
-      if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
-      return res.json(proposal);
-    }
-
-    // Fallback to SQLite
+    // Use SQLite database only (Supabase temporarily disabled)
     const proposal = Proposal.findById(req.params.id);
 
     if (!proposal) {
@@ -111,10 +93,8 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // TEMPORARILY DISABLE DATABASE SAVING - Return mock response
-    // This allows the frontend to work while database issues are resolved
-
-    const mockProposal = {
+    // Use SQLite database only (Supabase temporarily disabled)
+    const proposal = Proposal.create({
       id: uuidv4(),
       title,
       client_name,
@@ -128,13 +108,18 @@ router.post('/', async (req, res) => {
       deliverables,
       sla_terms,
       metadata: typeof metadata === 'object' ? JSON.stringify(metadata) : metadata,
-      created_by: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+      created_by: 'system-user-id', // Use system user ID
+    });
 
-    console.log('✅ Mock proposal created:', mockProposal.title);
-    res.status(201).json(mockProposal);
+    // Log the action
+    AuditLog.log('proposal', proposal.id, 'create', {
+      title,
+      client_name,
+      project_scope,
+    }, 'system-user-id');
+
+    console.log('✅ Proposal created in SQLite:', proposal.title);
+    res.status(201).json(proposal);
   } catch (error) {
     res.status(500).json({
       error: 'Failed to create proposal',
@@ -149,6 +134,7 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', (req, res) => {
   try {
+    // Use SQLite database only (Supabase temporarily disabled)
     const proposal = Proposal.findById(req.params.id);
 
     if (!proposal) {
@@ -171,7 +157,7 @@ router.put('/:id', (req, res) => {
     const updatedProposal = Proposal.update(req.params.id, updates);
 
     // Log the action
-    AuditLog.log('proposal', proposal.id, 'update', updates, 'system');
+    AuditLog.log('proposal', proposal.id, 'update', updates, 'system-user-id');
 
     res.json(updatedProposal);
   } catch (error) {
@@ -188,6 +174,7 @@ router.put('/:id', (req, res) => {
  */
 router.delete('/:id', (req, res) => {
   try {
+    // Use SQLite database only (Supabase temporarily disabled)
     const proposal = Proposal.findById(req.params.id);
 
     if (!proposal) {
@@ -195,7 +182,7 @@ router.delete('/:id', (req, res) => {
     }
 
     // Log before deletion
-    AuditLog.log('proposal', proposal.id, 'delete', { proposal }, 'system');
+    AuditLog.log('proposal', proposal.id, 'delete', { proposal }, 'system-user-id');
 
     Proposal.delete(req.params.id);
 
